@@ -1,0 +1,25 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Output parquet (jangan di-commit, ukurannya besar)
+output_parquet/*.parquet
+
+# Data input (jangan di-commit, data sensitif)
+data_input/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
