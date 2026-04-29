@@ -2,16 +2,21 @@
 
 Alat konversi data Excel/CSV/GeoJSON ke format **Parquet** untuk diupload ke sistem **TENTORING SE2026**.
 
+> **Kenapa Parquet?**
+> File Excel 300-400 MB bisa menjadi 20-40 MB setelah dikonversi ke Parquet.
+> Ini agar file bisa diupload ke Supabase (batas 50 MB) dan dibaca lebih cepat oleh sistem.
+
 ---
 
 ## Daftar Isi
 
 1. [Persyaratan](#persyaratan)
-2. [Instalasi dari Nol](#instalasi-dari-nol)
-3. [Struktur Folder](#struktur-folder)
-4. [Cara Konversi Data](#cara-konversi-data)
-5. [Cara Cek / Debug Data](#cara-cek--debug-data)
-6. [Troubleshooting](#troubleshooting)
+2. [Persyaratan Kolom Data](#persyaratan-kolom-data)
+3. [Instalasi dari Nol](#instalasi-dari-nol)
+4. [Struktur Folder](#struktur-folder)
+5. [Cara Konversi Data](#cara-konversi-data)
+6. [Cara Cek / Debug Data](#cara-cek--debug-data)
+7. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -20,6 +25,46 @@ Alat konversi data Excel/CSV/GeoJSON ke format **Parquet** untuk diupload ke sis
 - Komputer dengan sistem operasi Windows 10/11, macOS, atau Linux
 - Koneksi internet (untuk instalasi pertama kali)
 - File data dalam format: `.xlsx`, `.xls`, `.csv`, `.geojson`, atau `.shp`
+
+---
+
+## Persyaratan Kolom Data
+
+Script ini hanya menangani konversi format, koordinat, dan normalisasi IDSLS. Pastikan file sumber yang Anda taruh di `data_input/` sudah mengandung kolom-kolom berikut sebelum dikonversi, karena kolom-kolom ini dipanggil langsung oleh sistem di tooltip peta.
+
+### Data Usaha -- `data-usaha.xlsx`
+
+| Kolom | Status | Keterangan |
+|---|---|---|
+| `nama final` | Wajib | Nama usaha, ditampilkan sebagai judul di tooltip |
+| `alamat final` | Wajib | Alamat usaha |
+| `gc final` | Wajib | Kode geo-tagging / status pendataan |
+| `lat final` | Wajib | Koordinat latitude (atau nama lain, auto-detect) |
+| `long final` | Wajib | Koordinat longitude (atau nama lain, auto-detect) |
+| `idsls final` | Wajib | ID SLS (atau nama lain, auto-detect) |
+
+### Data Rumah Tangga -- `data-rumah-tangga.xlsx`
+
+| Kolom | Status | Keterangan |
+|---|---|---|
+| `lat final` | Wajib | Koordinat latitude (atau nama lain, auto-detect) |
+| `long final` | Wajib | Koordinat longitude (atau nama lain, auto-detect) |
+| `idsls final` | Wajib | ID SLS (atau nama lain, auto-detect) |
+| `nama_kk` | Opsional | Nama Kepala Keluarga. Jika ada, tooltip akan menampilkan "Rumah Tangga (Nama KK)". Jika tidak ada, tooltip default menjadi "Rumah Tangga". |
+
+### Data Bangunan -- `data-bangunan.geojson`
+
+| Kolom / Property | Status | Keterangan |
+|---|---|---|
+| `geometry` | Wajib | Polygon bangunan (sudah ada otomatis di GeoJSON) |
+| `status_bangunan` | Wajib | Membedakan kategori: `Bangunan Usaha`, `Rumah Tangga`, atau `Belum Terdata` |
+| `jml_usaha` | Wajib | Jumlah usaha dalam bangunan tersebut |
+| `kecamatan` | Wajib | Nama kecamatan |
+| `desa` | Wajib | Nama desa / kelurahan |
+| `idsls` | Wajib | ID SLS (atau nama lain, auto-detect) |
+| `color` | Opsional | Warna polygon `[R, G, B, A]`. Jika tidak ada, diisi abu-abu default. |
+
+> Jika salah satu kolom wajib tidak ada di file sumber, data tetap akan terkonversi ke Parquet, tetapi tampilan tooltip di peta akan menampilkan tanda `-` atau nilai kosong pada bagian yang bersangkutan.
 
 ---
 
@@ -56,7 +101,7 @@ cd tentoring-data-converter
 
 **Opsi B -- Download ZIP:**
 1. Klik tombol **Code** -> **Download ZIP** di halaman GitHub
-2. Ekstrak ZIP ke folder yang anda inginkan
+2. Ekstrak ZIP ke folder yang Anda inginkan
 3. Buka Terminal / Command Prompt, masuk ke folder tersebut:
    ```bash
    cd path/ke/folder/tentoring-data-converter
@@ -66,7 +111,7 @@ cd tentoring-data-converter
 
 ### Langkah 3 -- Buat Virtual Environment
 
-Virtual environment adalah ruang isolasi agar library yang diinstall tidak bentrok dengan aplikasi lain di komputer anda.
+Virtual environment adalah ruang isolasi agar library yang diinstall tidak bentrok dengan aplikasi lain di komputer Anda.
 
 ```bash
 python -m venv venv
@@ -82,10 +127,10 @@ Aktifkan venv:
 
 Setelah aktif, di terminal akan muncul `(venv)` di depan baris perintah:
 ```
-(venv) C:\Users\folder\tentoring-data-converter>
+(venv) C:\Users\Anda\tentoring-data-converter>
 ```
 
-> Setiap kali membuka terminal baru, anda harus aktifkan venv lagi dengan perintah di atas.
+> Setiap kali membuka terminal baru, Anda harus aktifkan venv lagi dengan perintah di atas.
 
 ---
 
@@ -97,7 +142,7 @@ Pastikan venv sudah aktif (ada tulisan `(venv)`), lalu jalankan:
 pip install -r requirements.txt
 ```
 
-Proses ini membutuhkan koneksi internet dan mungkin memakan waktu 2-5 menit bisa lebih cepat tergantung koneksi internet anda.
+Proses ini membutuhkan koneksi internet dan mungkin memakan waktu 2-5 menit.
 Jika berhasil, akan muncul tulisan `Successfully installed ...` di akhir.
 
 ---
@@ -112,12 +157,15 @@ tentoring-data-converter/
 |-- requirements.txt      <- Daftar library yang dibutuhkan
 |-- README.md             <- Panduan ini
 |
-|-- data_input/           <- TARUH FILE DATA DATA DI SINI
+|-- data_input/           <- TARUH FILE DATA KAMU DI SINI
 |   `-- (kosong)
 |
 `-- output_parquet/       <- HASIL KONVERSI AKAN MUNCUL DI SINI
     `-- (kosong)
 ```
+
+> Folder `data_input/` dan `output_parquet/` tidak akan ter-upload ke GitHub (sudah ada di `.gitignore`).
+> Ini penting karena data bersifat sensitif dan ukurannya besar.
 
 ---
 
@@ -125,7 +173,7 @@ tentoring-data-converter/
 
 ### Langkah 1 -- Siapkan File Data
 
-Taruh file data data ke dalam folder `data_input/`:
+Taruh file data Anda ke dalam folder `data_input/`:
 
 ```
 data_input/
@@ -150,7 +198,7 @@ Format yang didukung:
 
 Buka file `konversi_data.py` dengan teks editor (Notepad, VS Code, dll).
 
-Cari bagian **KONFIGURASI** dan ubah nama file sesuai file yang anda taruh:
+Cari bagian **KONFIGURASI** dan ubah nama file sesuai file yang Anda taruh:
 
 ```python
 KONFIGURASI = {
@@ -174,9 +222,9 @@ KONFIGURASI = {
 
 **Jika nama kolom lat/lon berbeda** dari standar, isi secara manual:
 ```python
-"kolom_lat":   "LATITUDE",   # nama kolom latitude di file anda
-"kolom_lon":   "LONGITUDE",  # nama kolom longitude di file anda
-"kolom_idsls": "ID_SLS",     # nama kolom ID SLS di file anda
+"kolom_lat":   "LATITUDE",   # nama kolom latitude di file Anda
+"kolom_lon":   "LONGITUDE",  # nama kolom longitude di file Anda
+"kolom_idsls": "ID_SLS",     # nama kolom ID SLS di file Anda
 ```
 
 **Jika tidak punya salah satu data**, kosongkan saja:
@@ -248,7 +296,7 @@ Contoh output:
 
 ## Cara Cek / Debug Data
 
-Setelah konversi, anda bisa mengecek isi file parquet dengan:
+Setelah konversi, Anda bisa mengecek isi file parquet dengan:
 
 ```bash
 python cek_data.py
@@ -277,7 +325,7 @@ Akan muncul menu interaktif:
 
 ### Fitur Query SQL Bebas
 
-Dengan pilihan `[6]`, anda bisa tulis query SQL apapun. Contoh:
+Dengan pilihan `[6]`, Anda bisa tulis query SQL apapun. Contoh:
 
 ```sql
 -- Hitung total per kecamatan
@@ -316,10 +364,10 @@ pip install -r requirements.txt
 
 ### Error: `Kolom lat/lon tidak ditemukan`
 
-Script tidak bisa mendeteksi kolom secara otomatis. Cek nama kolom di file Excel anda, lalu isi manual di KONFIGURASI:
+Script tidak bisa mendeteksi kolom secara otomatis. Cek nama kolom di file Excel Anda, lalu isi manual di KONFIGURASI:
 ```python
-"kolom_lat": "NAMA_KOLOM_LAT_ANDA",
-"kolom_lon": "NAMA_KOLOM_LON_ANDA",
+"kolom_lat": "NAMA_KOLOM_LAT_KAMU",
+"kolom_lon": "NAMA_KOLOM_LON_KAMU",
 ```
 
 ---
