@@ -237,7 +237,7 @@ KONFIGURASI = {
 Pastikan venv aktif, lalu:
 
 ```bash
-python konversi_data.py
+python convert-data.py
 ```
 
 Contoh output:
@@ -294,7 +294,7 @@ Contoh output:
 Setelah konversi, Anda bisa mengecek isi file parquet dengan:
 
 ```bash
-python cek_data.py
+python cek-data.py
 ```
 
 Akan muncul menu interaktif:
