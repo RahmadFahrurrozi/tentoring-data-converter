@@ -48,22 +48,15 @@ Script ini hanya menangani konversi format, koordinat, dan normalisasi IDSLS. Pa
 | `nama_kk` | Opsional | Nama Kepala Keluarga. Jika ada, tooltip akan menampilkan "Rumah Tangga (Nama KK)". Jika tidak ada, tooltip default menjadi "Rumah Tangga". |
 
 ### Data Bangunan -- `data-bangunan.geojson`
-
-| Kolom / Property | Status | Keterangan |
-|---|---|---|
-| `geometry` | Wajib | Polygon bangunan (sudah ada otomatis di GeoJSON) |
-| `status_bangunan` | Wajib | Membedakan kategori: `Bangunan Usaha`, `Rumah Tangga`, atau `Belum Terdata` |
-| `jml_usaha` | Wajib | Jumlah usaha dalam bangunan tersebut |
-| `kecamatan` | Wajib | Nama kecamatan |
-| `desa` | Wajib | Nama desa / kelurahan |
-| `idsls` | Wajib | ID SLS (atau nama lain, auto-detect) |
-| `color` | Opsional | Warna polygon `[R, G, B, A]`. Jika tidak ada, diisi abu-abu default. |
+> ```
+> Data osm building
+> ```
 
 > Jika salah satu kolom wajib tidak ada di file sumber, data tetap akan terkonversi ke Parquet, tetapi tampilan tooltip di peta akan menampilkan tanda `-` atau nilai kosong pada bagian yang bersangkutan.
 
 ---
 
-## Instalasi dari Nol
+## Instalasi
 
 ### Langkah 1 -- Install Python
 
@@ -152,7 +145,7 @@ tentoring-data-converter/
 |-- requirements.txt      <- Daftar library yang dibutuhkan
 |-- README.md             <- Panduan ini
 |
-|-- data_input/           <- TARUH FILE DATA KAMU DI SINI
+|-- data_input/           <- TARUH FILE DATA ANDA DI SINI
 |   `-- (kosong)
 |
 `-- output_parquet/       <- HASIL KONVERSI AKAN MUNCUL DI SINI
