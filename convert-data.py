@@ -36,7 +36,7 @@ import time
 KONFIGURASI = {
 
     "rumah_tangga": {
-        "input":       "data-rumah-tangga.xlsx",   # ← ganti nama file
+        "input":       "",   # ← ganti nama file
         "output":      "rumah-tangga.parquet",
         "sheet":       0,
         "kolom_lat":   "",
@@ -56,7 +56,7 @@ KONFIGURASI = {
     },
 
     "bangunan": {
-        "input":       "data-bangunan.geojson",     # ← ganti nama file
+        "input":       "",     # ← ganti nama file
         "output":      "bangunan-terklasifikasi.parquet",
         "sheet":       0,
         "kolom_lat":   "",
@@ -210,6 +210,16 @@ def proses_titik(nama: str, cfg: dict, input_dir: Path, output_dir: Path) -> boo
     else:
         warn("Kolom idsls tidak ditemukan — idsls_str diisi null")
         df["idsls_str"] = None
+
+    # Sanitasi kolom mixed-type (string + integer/float campur)
+    # PyArrow tidak bisa konversi kolom object yang isinya bukan murni string
+    kolom_mixed = []
+    for col in df.select_dtypes(include="object").columns:
+        if df[col].apply(lambda x: not isinstance(x, (str, type(None)))).any():
+            df[col] = df[col].apply(lambda x: str(x) if pd.notna(x) else None)
+            kolom_mixed.append(col)
+    if kolom_mixed:
+        warn(f"Kolom mixed-type dikonversi ke string: {kolom_mixed}")
 
     # Simpan
     path_output = output_dir / cfg["output"]
