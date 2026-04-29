@@ -1,10 +1,6 @@
 # Tentoring Data Converter
 
-Alat konversi data Excel/CSV/GeoJSON ke format **Parquet** untuk diupload ke sistem **TENTORING SE2026**.
-
-> **Kenapa Parquet?**
-> File Excel 300-400 MB bisa menjadi 20-40 MB setelah dikonversi ke Parquet.
-> Ini agar file bisa diupload ke Supabase (batas 50 MB) dan dibaca lebih cepat oleh sistem.
+Alat konversi data Excel/CSV/GeoJSON ke format **Parquet**.
 
 ---
 
@@ -30,8 +26,7 @@ Alat konversi data Excel/CSV/GeoJSON ke format **Parquet** untuk diupload ke sis
 
 ## Persyaratan Kolom Data
 
-Script ini hanya menangani konversi format, koordinat, dan normalisasi IDSLS. Pastikan file sumber yang Anda taruh di `data_input/` sudah mengandung kolom-kolom berikut sebelum dikonversi, karena kolom-kolom ini dipanggil langsung oleh sistem di tooltip peta.
-
+Script ini hanya menangani konversi format, koordinat, dan normalisasi IDSLS. Pastikan file sumber yang Anda taruh di `data_input/` sudah mengandung kolom-kolom berikut sebelum dikonversi.
 ### Data Usaha -- `data-usaha.xlsx`
 
 | Kolom | Status | Keterangan |
