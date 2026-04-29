@@ -147,8 +147,8 @@ Jika berhasil, akan muncul tulisan `Successfully installed ...` di akhir.
 ```
 tentoring-data-converter/
 |
-|-- konversi_data.py      <- Script utama konversi
-|-- cek_data.py           <- Script untuk debug/lihat isi parquet
+|-- convert-data.py      <- Script utama konversi
+|-- cek-data.py           <- Script untuk debug/lihat isi parquet
 |-- requirements.txt      <- Daftar library yang dibutuhkan
 |-- README.md             <- Panduan ini
 |
