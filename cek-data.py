@@ -8,16 +8,20 @@ Cara Pakai:
   python cek_data.py
 """
 
-import duckdb
+import sys
 from pathlib import Path
 
-OUTPUT_DIR = Path(__file__).parent / "output_parquet"
+try:
+    import duckdb
+except ImportError:
+    print("\n\033[91m[ERROR] Module 'duckdb' tidak ditemukan di Python global.\033[0m")
+    print("\033[96m→ Aktifkan virtual environment (.venv) terlebih dahulu di PowerShell:\033[0m")
+    print("    .\\.venv\\Scripts\\Activate.ps1")
+    print("\033[96m→ Atau jalankan langsung dengan Python venv:\033[0m")
+    print("    .\\.venv\\Scripts\\python cek-data.py\n")
+    sys.exit(1)
 
-FILES = {
-    "1": {"nama": "Rumah Tangga",  "file": "rumah-tangga.parquet"},
-    "2": {"nama": "Usaha",         "file": "uji-coba-peta.parquet"},
-    "3": {"nama": "Bangunan",      "file": "bangunan-terklasifikasi.parquet"},
-}
+OUTPUT_DIR = Path(__file__).parent / "output_parquet"
 
 WARNA_OK    = "\033[92m"
 WARNA_WARN  = "\033[93m"
@@ -35,35 +39,41 @@ def header(teks):
     print(f"{'─'*55}{RESET}")
 
 
-def cek_file_tersedia():
+def dapatkan_semua_parquet() -> dict:
+    file_list = sorted(list(OUTPUT_DIR.glob("**/*.parquet")))
+    hasil = {}
+    for idx, p in enumerate(file_list, 1):
+        rel_path = p.relative_to(OUTPUT_DIR)
+        hasil[str(idx)] = {"nama": str(rel_path), "path": p}
+    return hasil
+
+
+def cek_file_tersedia() -> bool:
     print(f"\n{WARNA_BOLD}{'═'*55}")
     print("  FILE PARQUET TERSEDIA")
     print(f"{'═'*55}{RESET}")
-    ada = False
-    for key, info in FILES.items():
-        path = OUTPUT_DIR / info["file"]
-        if path.exists():
-            size = path.stat().st_size / 1024 / 1024
-            print(f"  {WARNA_OK}OK{RESET}  [{key}] {info['nama']:<20} ({size:.1f} MB)")
-            ada = True
-        else:
-            print(f"  {WARNA_WARN}--{RESET}  [{key}] {info['nama']:<20} (belum ada)")
-    if not ada:
-        print(f"\n  {WARNA_ERROR}Tidak ada file parquet di folder output_parquet/{RESET}")
-        print(f"  Jalankan dulu: python konversi_data.py")
-    return ada
+    daftar = dapatkan_semua_parquet()
+    if not daftar:
+        print(f"  {WARNA_ERROR}Tidak ada file parquet di folder output_parquet/{RESET}")
+        print(f"  Jalankan dulu: python convert-data.py")
+        return False
+    
+    for key, info in daftar.items():
+        size = info["path"].stat().st_size / 1024 / 1024
+        print(f"  {WARNA_OK}OK{RESET}  [{key}] {info['nama']:<45} ({size:.2f} MB)")
+    return True
 
 
 def pilih_file() -> Path | None:
-    tersedia = {k: v for k, v in FILES.items() if (OUTPUT_DIR / v["file"]).exists()}
-    if not tersedia:
+    daftar = dapatkan_semua_parquet()
+    if not daftar:
         return None
-    print(f"\n  Pilih data: ", end="")
+    print(f"\n  Pilih nomor data [1-{len(daftar)}]: ", end="")
     pilihan = input().strip()
-    if pilihan not in tersedia:
+    if pilihan not in daftar:
         print(f"  {WARNA_ERROR}Pilihan tidak valid.{RESET}")
         return None
-    return OUTPUT_DIR / tersedia[pilihan]["file"]
+    return daftar[pilihan]["path"]
 
 
 def ringkasan(path: Path):

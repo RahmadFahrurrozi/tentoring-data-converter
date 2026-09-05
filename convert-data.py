@@ -18,6 +18,10 @@ from pathlib import Path
 import sys
 import time
 
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # ══════════════════════════════════════════════════════════════════
 #  KONFIGURASI — SESUAIKAN DI SINI
 # ══════════════════════════════════════════════════════════════════
@@ -33,11 +37,63 @@ import time
 #
 # ══════════════════════════════════════════════════════════════════
 
+KECAMATAN_BANYUWANGI = {
+    "3510010": "pesanggaran",
+    "3510020": "bangorejo",
+    "3510030": "purwoharjo",
+    "3510040": "tegaldlimo",
+    "3510050": "muncar",
+    "3510060": "cluring",
+    "3510070": "gambiran",
+    "3510080": "srono",
+    "3510090": "genteng",
+    "3510100": "glenmore",
+    "3510110": "kalibaru",
+    "3510120": "rogojampi",
+    "3510130": "kabat",
+    "3510140": "singojuruh",
+    "3510150": "sempu",
+    "3510160": "songgon",
+    "3510170": "glagah",
+    "3510180": "giri",
+    "3510190": "wongsorejo",
+    "3510200": "banyuwangi",
+    "3510210": "kalipuro",
+    "3510220": "siliragung",
+    "3510230": "tegalsari",
+    "3510240": "licin",
+    "3510250": "blimbingsari",
+}
+
 KONFIGURASI = {
 
+    # ── Rumah Tangga / KK ────────────────────────────────────────
     "rumah_tangga": {
-        "input":       "",   # ← ganti nama file
+        "input":       "KK010_050_gabungan_2sept.xlsx",
         "output":      "rumah-tangga.parquet",
+        "sheet":       0,
+        "kolom_lat":   "",           # auto-detect (geotag_latitude)
+        "kolom_lon":   "",           # auto-detect (geotag_longitude)
+        "kolom_idsls": "",           # auto-detect (level_6_full_code)
+        "is_spatial":  False,
+    },
+
+    # ── Bangunan Lainnya (Tempat Ibadah, Rumah Kosong, Fasum, dll)
+    "bangunan_lainnya": {
+        "input":       "bangunan010_050_gabungan_2sept.xlsx",
+        "output":      "bangunan-lainnya.parquet",
+        "alias_output": "bangunan-terklasifikasi.parquet",
+        "sheet":       0,
+        "kolom_lat":   "",           # auto-detect (geotag_latitude)
+        "kolom_lon":   "",           # auto-detect (geotag_longitude)
+        "kolom_idsls": "",           # auto-detect (level_6_full_code)
+        "is_spatial":  False,
+    },
+
+    # ── Usaha digital / bisnis digital ──────────────────────────
+    "usaha_digital": {
+        "input":       "",   # ← diisi jika ada file data-usaha-digital.xlsx
+        "output":      "data-usaha-digital.parquet",
         "sheet":       0,
         "kolom_lat":   "",
         "kolom_lon":   "",
@@ -45,18 +101,41 @@ KONFIGURASI = {
         "is_spatial":  False,
     },
 
-    "usaha": {
-        "input":       "data-usaha.xlsx",           # ← ganti nama file
-        "output":      "uji-coba-peta.parquet",
+    # ── Usaha pertanian ─────────────────────────────────────────
+    "usaha_pertanian": {
+        "input":       "pertanian_gabungan_2sept.xlsx",
+        "output":      "titik-usaha-pertanian.parquet",
         "sheet":       0,
-        "kolom_lat":   "",
-        "kolom_lon":   "",
-        "kolom_idsls": "",
+        "kolom_lat":   "",           # auto-detect (geotag_latitude)
+        "kolom_lon":   "",           # auto-detect (geotag_longitude)
+        "kolom_idsls": "",           # auto-detect (level_6_full_code)
         "is_spatial":  False,
+    },
+
+    # ── Usaha biasa / UMKM ──────────────────────────────────────
+    "usaha_biasa": {
+        "input":       "usahanonA_gabungan_2sept.xlsx",
+        "output":      "data-usaha-biasa-2.parquet",
+        "sheet":       0,
+        "kolom_lat":   "",           # auto-detect (geotag_latitude)
+        "kolom_lon":   "",           # auto-detect (geotag_longitude)
+        "kolom_idsls": "",           # auto-detect (level_6_full_code)
+        "is_spatial":  False,
+    },
+
+    "usaha_rogojampi": {
+        "input":       "",
+        "output":      "usaha-rogojampi-se.parquet",
+        "sheet":       0,
+        "kolom_lat":   "geotag_latitude",
+        "kolom_lon":   "geotag_longitude",
+        "kolom_idsls": "level_6_full_code",
+        "is_spatial":  False,
+        "split_pertanian": True,
     },
 
     "bangunan": {
-        "input":       "",     # ← ganti nama file
+        "input":       "",
         "output":      "bangunan-terklasifikasi.parquet",
         "sheet":       0,
         "kolom_lat":   "",
@@ -125,6 +204,7 @@ def baca_file(path: Path, sheet=0) -> pd.DataFrame | None:
             info(f"Membaca CSV: {path.name}")
             sample = path.read_text(encoding="utf-8", errors="replace")[:2000]
             sep = ";" if sample.count(";") > sample.count(",") else ","
+            info(f"Separator terdeteksi: '{sep}'")
             return pd.read_csv(path, sep=sep, low_memory=False)
         elif ext == ".parquet":
             info(f"Membaca Parquet: {path.name}")
@@ -167,10 +247,10 @@ def proses_titik(nama: str, cfg: dict, input_dir: Path, output_dir: Path) -> boo
 
     info(f"Jumlah baris  : {len(df):,} | Kolom: {len(df.columns)}")
 
-    # Auto-detect kolom koordinat
-    kandidat_lat  = ["lat final", "latitude", "lat", "y", "Lat", "LATITUDE"]
-    kandidat_lon  = ["long final", "longitude", "lon", "long", "x", "Lon", "LONGITUDE"]
-    kandidat_sls  = ["idsls final", "idsls", "id_sls", "IDSLS", "kode_sls", "sls"]
+    # Auto-detect kolom koordinat & ID SLS
+    kandidat_lat  = ["lat final", "latitude", "geotag_latitude", "lat", "y", "Lat", "LATITUDE"]
+    kandidat_lon  = ["long final", "longitude", "geotag_longitude", "lon", "long", "x", "Lon", "LONGITUDE"]
+    kandidat_sls  = ["idsls final", "level_6_full_code", "idsls", "id_sls", "IDSLS", "kode_sls", "sls"]
 
     kolom_lat  = cfg["kolom_lat"]   or cari_kolom(df, kandidat_lat)
     kolom_lon  = cfg["kolom_lon"]   or cari_kolom(df, kandidat_lon)
@@ -190,6 +270,45 @@ def proses_titik(nama: str, cfg: dict, input_dir: Path, output_dir: Path) -> boo
     rename_map = {kolom_lat: "lat final", kolom_lon: "long final"}
     if kolom_sls and kolom_sls != "idsls final":
         rename_map[kolom_sls] = "idsls final"
+    
+    # Auto-map nama usaha & alamat jika ada
+    kandidat_nama = ["nama final", "nama_usaha", "nama_usaha_edit", "nama_komersial", "nama_principal"]
+    kolom_nama = cari_kolom(df, kandidat_nama)
+    if kolom_nama and "nama final" not in df.columns:
+        df["nama final"] = df[kolom_nama]
+        info(f"Kolom 'nama final' disalin dari '{kolom_nama}'")
+
+    kandidat_alamat = ["alamat final", "alamat_usaha_view", "alamat", "alamat_usaha"]
+    kolom_alamat = cari_kolom(df, kandidat_alamat)
+    if kolom_alamat and "alamat final" not in df.columns:
+        df["alamat final"] = df[kolom_alamat]
+        info(f"Kolom 'alamat final' disalin dari '{kolom_alamat}'")
+
+    # Auto-map nama KK jika ada (khusus data rumah tangga/KK)
+    if any(k in nama.lower() for k in ["rumah_tangga", "kk", "rt"]):
+        kandidat_kk = ["nama_kk", "nama_principal", "nama_kepala_keluarga"]
+        kolom_kk = cari_kolom(df, kandidat_kk)
+        if kolom_kk and "nama_kk" not in df.columns:
+            df["nama_kk"] = df[kolom_kk]
+            info(f"Kolom 'nama_kk' disalin dari '{kolom_kk}'")
+
+    # Auto-map kategori/status bangunan jika ada kode_bang_value
+    kandidat_kode_bang = ["kode_bang_value", "kode_bang"]
+    kolom_kode_bang = cari_kolom(df, kandidat_kode_bang)
+    if kolom_kode_bang:
+        kode_map = {
+            4: "Tempat Ibadah",
+            5: "Fasilitas Umum / Kantor",
+            6: "Bangunan / Rumah Kosong",
+            7: "Usaha Tanpa Bangunan",
+            8: "Sosial / Pesantren / Khusus",
+            9: "Bangunan Lainnya",
+        }
+        df["kategori_bangunan"] = pd.to_numeric(df[kolom_kode_bang], errors="coerce").map(kode_map).fillna("Bangunan Lainnya")
+        if "status_bangunan" not in df.columns:
+            df["status_bangunan"] = df["kategori_bangunan"]
+        info("Kolom 'kategori_bangunan' & 'status_bangunan' berhasil dipetakan dari 'kode_bang_value'")
+
     df = df.rename(columns=rename_map)
 
     # Bersihkan koordinat invalid
@@ -211,8 +330,7 @@ def proses_titik(nama: str, cfg: dict, input_dir: Path, output_dir: Path) -> boo
         warn("Kolom idsls tidak ditemukan — idsls_str diisi null")
         df["idsls_str"] = None
 
-    # Sanitasi kolom mixed-type (string + integer/float campur)
-    # PyArrow tidak bisa konversi kolom object yang isinya bukan murni string
+    # Sanitasi kolom mixed-type
     kolom_mixed = []
     for col in df.select_dtypes(include="object").columns:
         if df[col].apply(lambda x: not isinstance(x, (str, type(None)))).any():
@@ -221,15 +339,59 @@ def proses_titik(nama: str, cfg: dict, input_dir: Path, output_dir: Path) -> boo
     if kolom_mixed:
         warn(f"Kolom mixed-type dikonversi ke string: {kolom_mixed}")
 
-    # Simpan
-    path_output = output_dir / cfg["output"]
-    df.to_parquet(path_output, index=False, engine="pyarrow", compression="snappy")
+    # Simpan output utama di root output_parquet/
+    path_output_full = output_dir / cfg["output"]
+    df.to_parquet(path_output_full, index=False, engine="pyarrow", compression="snappy")
+
+    # Simpan salinan alias_output jika didefinisikan (misal: bangunan-terklasifikasi.parquet)
+    if cfg.get("alias_output"):
+        path_alias = output_dir / cfg["alias_output"]
+        df.to_parquet(path_alias, index=False, engine="pyarrow", compression="snappy")
+        info(f"Salinan alias tersimpan: {path_alias.name}")
+
+    # Group & simpan per kecamatan (Opsional, hanya jika "split_kecamatan": True di KONFIGURASI)
+    if cfg.get("split_kecamatan", False) and "idsls_str" in df.columns:
+        df["_kode_kec"] = df["idsls_str"].astype(str).str[:7]
+        kec_list = [k for k in df["_kode_kec"].unique() if k and k != "None" and len(k) == 7]
+
+        if kec_list:
+            info(f"Membagi output Parquet per kecamatan ({len(kec_list)} kecamatan terdeteksi)...")
+            for kode_kec in kec_list:
+                df_kec = df[df["_kode_kec"] == kode_kec].drop(columns=["_kode_kec"]).copy()
+                nama_folder = KECAMATAN_BANYUWANGI.get(kode_kec, f"kec_{kode_kec}")
+                folder_kec = output_dir / f"kec_{kode_kec}_{nama_folder}"
+                folder_kec.mkdir(parents=True, exist_ok=True)
+
+                # Simpan full per kecamatan
+                path_kec_full = folder_kec / cfg["output"]
+                df_kec.to_parquet(path_kec_full, index=False, engine="pyarrow", compression="snappy")
+
+                # Split otomatis Pertanian vs Biasa per kecamatan
+                if cfg.get("split_pertanian") and "kategori" in df_kec.columns:
+                    df_pertanian = df_kec[df_kec["kategori"].astype(str).str.upper() == "A"].copy()
+                    df_biasa     = df_kec[df_kec["kategori"].astype(str).str.upper() != "A"].copy()
+
+                    p_pert = folder_kec / "titik-usaha-pertanian.parquet"
+                    p_bias = folder_kec / "data-usaha-biasa.parquet"
+
+                    df_pertanian.to_parquet(p_pert, index=False, engine="pyarrow", compression="snappy")
+                    df_biasa.to_parquet(p_bias, index=False, engine="pyarrow", compression="snappy")
+
+                    ok(f"Folder '{folder_kec.name}' Tersimpan:")
+                    ok(f"  ├── {p_pert.name:<28} ({len(df_pertanian):,} baris, {ukuran_file(p_pert)})")
+                    ok(f"  ├── {p_bias.name:<28} ({len(df_biasa):,} baris, {ukuran_file(p_bias)})")
+                    ok(f"  └── {path_kec_full.name:<28} ({len(df_kec):,} baris, {ukuran_file(path_kec_full)})")
+                else:
+                    ok(f"Folder '{folder_kec.name}' Tersimpan: {path_kec_full.name} ({len(df_kec):,} baris)")
+
+        if "_kode_kec" in df.columns:
+            df = df.drop(columns=["_kode_kec"])
 
     elapsed = time.time() - t0
-    ok(f"Tersimpan     : {path_output.name}")
-    ok(f"Ukuran output : {ukuran_file(path_output)}")
-    ok(f"Baris final   : {len(df):,} baris")
-    ok(f"Waktu proses  : {elapsed:.1f} detik")
+    ok(f"Tersimpan Full Utama: {path_output_full.name}")
+    ok(f"Ukuran output       : {ukuran_file(path_output_full)}")
+    ok(f"Baris final         : {len(df):,} baris")
+    ok(f"Waktu proses        : {elapsed:.1f} detik")
     return True
 
 
@@ -298,6 +460,82 @@ def proses_bangunan(nama: str, cfg: dict, input_dir: Path, output_dir: Path) -> 
     return True
 
 
+def auto_scan_data_input(input_dir: Path) -> list[tuple[str, dict]]:
+    valid_exts = {".xlsx", ".xlsm", ".xls", ".csv", ".geojson", ".shp"}
+    files = [f for f in sorted(input_dir.iterdir()) if f.is_file() and f.suffix.lower() in valid_exts]
+    
+    # Map input file name -> (nama, cfg) from KONFIGURASI if defined
+    konf_map = {cfg["input"].strip(): (nama, cfg) for nama, cfg in KONFIGURASI.items() if cfg.get("input")}
+    
+    daftar_job = []
+    for file_path in files:
+        fname = file_path.name
+        if fname in konf_map:
+            nama, cfg = konf_map[fname]
+            daftar_job.append((nama, cfg))
+        else:
+            stem = file_path.stem
+            is_spatial = file_path.suffix.lower() in (".geojson", ".shp")
+            cfg_default = {
+                "input":       fname,
+                "output":      f"{stem}.parquet",
+                "sheet":       0,
+                "kolom_lat":   "",
+                "kolom_lon":   "",
+                "kolom_idsls": "",
+                "is_spatial":  is_spatial,
+            }
+            daftar_job.append((stem, cfg_default))
+            
+    return daftar_job
+
+
+def pilih_menu_interaktif(daftar_job: list[tuple[str, dict]]) -> list[tuple[str, dict]]:
+    if not daftar_job:
+        warn("Tidak ada file data (.xlsx, .csv, .geojson) di folder data_input/!")
+        return []
+
+    print("\n" + "═"*58)
+    print("  PILIH FILE DATA YANG INGIN DIPROSES")
+    print("═"*58)
+    print(f"  [0]  SEMUA FILE DI FOLDER 'data_input/' ({len(daftar_job)} file)")
+    
+    for idx, (nama, cfg) in enumerate(daftar_job, 1):
+        filename = cfg['input']
+        outname  = cfg['output']
+        print(f"  [{idx}]  {filename:<42} -> {outname}")
+    
+    print("═"*58)
+    try:
+        pilihan = input("\n  Masukkan pilihan (0 untuk semua, atau nomor file misal: 1, 2) [Default=0]: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        sys.exit(0)
+
+    if not pilihan or pilihan == "0" or pilihan.lower() == "all":
+        return daftar_job
+
+    selected_jobs = []
+    for part in pilihan.replace(";", ",").split(","):
+        part = part.strip()
+        if part.isdigit():
+            num = int(part)
+            if 1 <= num <= len(daftar_job):
+                job = daftar_job[num - 1]
+                if job not in selected_jobs:
+                    selected_jobs.append(job)
+            else:
+                warn(f"Pilihan nomor {num} di luar jangkauan menu.")
+        elif part.lower() in ("q", "exit"):
+            sys.exit(0)
+
+    if not selected_jobs:
+        warn("Pilihan tidak valid, memproses semua file sebagai default...")
+        return daftar_job
+
+    return selected_jobs
+
+
 def main():
     print("\n" + "═"*58)
     print("  TENTORING DATA CONVERTER")
@@ -314,8 +552,13 @@ def main():
     info(f"Folder input  : {input_dir.resolve()}")
     info(f"Folder output : {output_dir.resolve()}")
 
+    daftar_job    = auto_scan_data_input(input_dir)
+    selected_jobs = pilih_menu_interaktif(daftar_job)
+    if not selected_jobs:
+        return
+
     hasil = {}
-    for nama, cfg in KONFIGURASI.items():
+    for nama, cfg in selected_jobs:
         if not cfg["input"]:
             warn(f"[{nama}] Input kosong, dilewati.")
             hasil[nama] = "dilewati"

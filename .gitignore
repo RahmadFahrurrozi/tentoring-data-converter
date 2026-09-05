@@ -5,7 +5,7 @@ env/
 
 # Output parquet (jangan di-commit, ukurannya besar)
 output_parquet/*.parquet
-
+output_parquet/sidoarjo/*.parquet
 # Data input (jangan di-commit, data sensitif)
 data_input/
 
